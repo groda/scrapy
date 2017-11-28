@@ -1,0 +1,34 @@
+import os
+import glob
+import json
+import string
+from re import split
+import regex
+
+DIR='./output/'
+proFile=sorted(filter(os.path.isfile, glob.glob(DIR+'*products*.json')), key=os.path.getmtime, reverse=True)[0]
+ingFile=sorted(filter(os.path.isfile, glob.glob(DIR+'*ingredients*.json')), key=os.path.getmtime, reverse=True)[0]
+print("Product file: "+proFile)
+print("Ingredients file: "+ingFile)
+mergedFile='res_'+os.path.basename(proFile)
+ingredients = {}
+with open(ingFile,'rb') as iFile:
+    for line in iFile:
+        for k,v in json.loads(line).iteritems():
+            ingredients[k] = v
+with open(proFile,'rb') as pFile:
+    products = json.load(pFile)
+for p in products:
+    code = p["code"]
+    if code in ingredients:
+        #p["ingredients"] = split(',\s*(?![^()]*\))', string.replace(ingredients[code],'Zutaten: ',''))
+	r = regex.compile(r'({(?:[^()]++|\g<1>)*})(*SKIP)(*FAIL)|\s*,\s*')
+	if len(ingredients[code])>0: # exclude case of empty list
+	    s = string.replace(ingredients[code],'Zutaten: ','')
+            p["ingredients"] = filter(lambda v: v is not None, r.split(s) )
+	    # hack: remove but then there will be problems with duplicate ingredients in JSON schema
+	    p["ingredients"] = list(set(p["ingredients"]))
+	    #print(p["ingredients"])
+print("Output to: "+mergedFile)
+with open(mergedFile,'wb') as pFile:
+	json.dump(products, pFile)
