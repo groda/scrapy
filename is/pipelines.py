@@ -3,6 +3,7 @@
 from scrapy import signals
 from scrapy.exporters import JsonLinesItemExporter, JsonItemExporter
 import time
+import logging
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: http://doc.scrapy.org/en/latest/topics/item-pipeline.html
 
@@ -21,18 +22,18 @@ class JsonExportPipeline(object):
         return pipeline
 
     def spider_opened(self, spider):
-	timestamp = str(int(time.time()))
+        timestamp = str(int(time.time()))
         file = open(OUTDIR+'%s%s_products.json' % (timestamp, spider.name), 'w+b')
-	#file.write('[')
+        #file.write('[')
         self.files[spider] = file
         self.exporter = JsonItemExporter(file,encoding='utf-8', ensure_ascii=False)
         self.exporter.start_exporting()
-	self.log("Output file: "+ file)
+        self.log("Output file: "+ file)
 
     def spider_closed(self, spider):
         self.exporter.finish_exporting()
         file = self.files.pop(spider)
-	#file.write(']')
+        #file.write(']')
         file.close()
 
     def process_item(self, item, spider):
@@ -53,9 +54,9 @@ class JsonMatchPipeline(object):
         return pipeline
 
     def spider_opened(self, spider):
-	timestamp = str(int(time.time()))
+        timestamp = str(int(time.time()))
         file = open(OUTDIR+'%s%s_ingredients.json' % (timestamp, spider.name), 'w+b')
-	#file.write('[')
+        #file.write('[')
         self.files[spider] = file
         self.exporter = JsonLinesItemExporter(file,encoding='utf-8', ensure_ascii=False)
         self.exporter.start_exporting()
@@ -63,7 +64,7 @@ class JsonMatchPipeline(object):
     def spider_closed(self, spider):
         self.exporter.finish_exporting()
         file = self.files.pop(spider)
-	#file.write(']')
+        #file.write(']')
         file.close()
 
     def process_item(self, item, spider):
