@@ -35,4 +35,4 @@ for p in products:
             p["ingredients"] = [x for x in p["ingredients"] if not (x in seen or seen_add(x))]
 print("Output to: "+mergedFile)
 with open(mergedFile,'wb') as pFile:
-	json.dump(products, pFile)
+    json.dump(products, pFile)

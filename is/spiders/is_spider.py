@@ -64,7 +64,7 @@ class InterSpider(scrapy.Spider):
             desc3 = p["product-short-description-3"].split()
             if len(desc3)>1:
                 [amount, unit] = desc3[:2]
-		unit = unit.lower()
+                unit = unit.lower()
                 amount = float(amount.replace(',','.'))
             else:
                 [amount, unit] = [0, ""]
