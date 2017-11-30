@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 import glob
 import json
@@ -21,14 +22,17 @@ with open(proFile,'rb') as pFile:
 for p in products:
     code = p["code"]
     if code in ingredients:
-        r = regex.compile(r'({(?:[^()]++|\g<1>)*})(*SKIP)(*FAIL)|\s*,\s*')
+        print ingredients[code]
+        r = regex.compile(r',\s*(?![^\(\)]*\))\s*')
         if len(ingredients[code])>0: # exclude case of empty list
             s = string.replace(ingredients[code],'Zutaten: ','')
+            s = string.replace(s,u'In Großbuchstaben angegebene Zutaten enthalten allergene Inhaltsstoffe.','')
+            s = s.rstrip('.,') 
             p["ingredients"] = filter(lambda v: v is not None, r.split(s) )
             # remove duplicate ingredients 
-	    seen = set()
-	    seen_add = seen.add
-	    p["ingredients"] = [x for x in p["ingredients"] if not (x in seen or seen_add(x))]
+            seen = set()
+            seen_add = seen.add
+            p["ingredients"] = [x for x in p["ingredients"] if not (x in seen or seen_add(x))]
 print("Output to: "+mergedFile)
 with open(mergedFile,'wb') as pFile:
 	json.dump(products, pFile)
