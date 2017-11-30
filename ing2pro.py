@@ -21,14 +21,14 @@ with open(proFile,'rb') as pFile:
 for p in products:
     code = p["code"]
     if code in ingredients:
-        #p["ingredients"] = split(',\s*(?![^()]*\))', string.replace(ingredients[code],'Zutaten: ',''))
         r = regex.compile(r'({(?:[^()]++|\g<1>)*})(*SKIP)(*FAIL)|\s*,\s*')
         if len(ingredients[code])>0: # exclude case of empty list
             s = string.replace(ingredients[code],'Zutaten: ','')
             p["ingredients"] = filter(lambda v: v is not None, r.split(s) )
-            # hack: remove but then there will be problems with duplicate ingredients in JSON schema
-            p["ingredients"] = list(set(p["ingredients"]))
-            #print(p["ingredients"])
+            # remove duplicate ingredients 
+	    seen = set()
+	    seen_add = seen.add
+	    p["ingredients"] = [x for x in p["ingredients"] if not (x in seen or seen_add(x))]
 print("Output to: "+mergedFile)
 with open(mergedFile,'wb') as pFile:
 	json.dump(products, pFile)
