@@ -22,7 +22,7 @@ with open(proFile,'rb') as pFile:
 for p in products:
     code = p["code"]
     if code in ingredients:
-        print ingredients[code]
+        #print ingredients[code]
         r = regex.compile(r',\s*(?![^\(\)]*\))\s*')
         if len(ingredients[code])>0: # exclude case of empty list
             s = string.replace(ingredients[code],'Zutaten: ','')
