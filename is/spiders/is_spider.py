@@ -7,8 +7,106 @@ import urlparse
 import os
 import json
 import time
+import re
+import string
+import regex
 
 OUTDIR = './output/'
+
+
+class MpreisSpider(scrapy.Spider):
+    name = "ms"
+
+    custom_settings = {
+                       'ITEM_PIPELINES': {
+                       'is.pipelines.JsonExportPipeline': 300
+                                         }
+                      }
+
+
+    def __init__(self, baseURL=None, *args, **kwargs):
+        super(MpreisSpider, self).__init__(*args, **kwargs)
+        self.baseURL = baseURL
+        if not os.path.exists(OUTDIR):
+            try:
+                os.makedirs(OUTDIR)
+            except OSError:
+                raise
+
+    def start_requests(self):
+        urls = [self.baseURL]
+        for url in urls:
+            yield scrapy.Request(url=url, callback=self.parse)
+
+    def parse(self, response):
+        splitUrl = response.url.rstrip('/').split('/')
+        #self.log(splitUrl)
+        if re.match(r'\d',splitUrl[-1]):
+            next_page = str(int(splitUrl[-1])+1)
+            if len(prods)==20 : # not last page
+                yield response.follow('/'.join(splitUrl)+'/'+next_page, callback=self.parse)
+        if re.match(r'Lebensmittel',splitUrl[-1]):
+            xp = '//a[@class="toplevel current" and \
+                  text()="Lebensmittel"]/following::ul[@class="sublevel2"] \
+                  /li/a[contains(@href,"Lebensmittel")]/@href'
+            for url in response.xpath(xp).extract():
+                yield response.follow(url, callback=self.parse)
+                
+        
+        xpp='//h2[@class="tm-title"]/../@href'
+        prods = response.xpath(xpp).extract()
+        for p in prods:
+            self.log('request prod '+p+'#lmiv') 
+            yield response.follow(p+'#lmiv', callback=self.parse_prod)      
+            
+
+    def parse_prod(self, response):
+        data = {}
+        xp = '//h1[@id="productTitle"]/span/text()' 
+        data["name"] = response.xpath(xp).extract_first()
+        data["stores"] = ["Mpreis"]
+        tb = response.xpath('(//div[@id="cs0"]/div[1]/table[1]/tr)')
+        for i in range(len(tb)/2):
+            k = response.xpath('(//div[@id="cs0"]/div[1]/table[1]/tr['+str(i)+']/th/text())').extract_first()
+            v = response.xpath('(//div[@id="cs0"]/div[1]/table[1]/tr['+str(i)+']/td/text())').extract_first()
+            data[k] = v
+        if "Marke" in data:
+            data["brand"] = data["Marke"]
+        data["labels"] = []
+        if u'Zutaten' in data:
+            ingredients = string.replace(data[u'Zutaten'],'Zutaten: ','').rstrip('.,')
+            ingredients = re.sub('(?<=\d),(?=\d)', '.',ingredients)
+            r = regex.compile(r',\s*(?![^\(\)]*\))\s*')
+            ingredients = r.split(ingredients)
+            ingredients = filter(lambda v: v is not None, ingredients)
+            # remove duplicate ingredients  
+            seen = set()
+            seen_add = seen.add
+            data["ingredients"] = [x for x in ingredients if not (x in seen or seen_add(x))]
+        else:
+            data["ingredients"] = []
+        data["details"] = {}
+        data["details"]["size"] = {}
+        xp = '//div[@class="tm-content"]/text()'
+        size = response.xpath(xp).extract()[0].lstrip().split()[:2]
+        if len(size) >0:
+            m = re.match(r'\d+[,]*\d*',size[0])
+            if m:
+                s = m.group()
+                data["details"]["size"]["amount"] = float(re.sub('(?<=\d),(?=\d)', '.',s))
+            if len(size) >1:
+                data["details"]["size"]["unit"] = size[1].lower()
+        data["details"]["price"] = {}
+        xp = '//label[@id="productPrice"]/strong/span[1]/text()[1]'
+        price = response.xpath(xp).extract()[0]
+        xp = '//label[@id="batchPrice"]/strong/span[1]/span/text()'
+        price = price+''.join(response.xpath(xp).extract())
+        data["details"]["price"]["amount"] = float(re.sub('(?<=\d),(?=\d)', '.',price))
+        data["details"]["price"]["currency"] = "EUR"   
+        #self.log(data)
+        yield data
+
+
 
 class InterSpider(scrapy.Spider):
     name = "is"
