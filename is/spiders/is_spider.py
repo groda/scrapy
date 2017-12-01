@@ -40,24 +40,25 @@ class MpreisSpider(scrapy.Spider):
 
     def parse(self, response):
         splitUrl = response.url.rstrip('/').split('/')
-        #self.log(splitUrl)
-        if re.match(r'\d',splitUrl[-1]):
-            next_page = str(int(splitUrl[-1])+1)
-            if len(prods)==20 : # not last page
-                yield response.follow('/'.join(splitUrl)+'/'+next_page, callback=self.parse)
+        #self.log(splitUrl)           
         if re.match(r'Lebensmittel',splitUrl[-1]):
             xp = '//a[@class="toplevel current" and \
                   text()="Lebensmittel"]/following::ul[@class="sublevel2"] \
                   /li/a[contains(@href,"Lebensmittel")]/@href'
             for url in response.xpath(xp).extract():
-                yield response.follow(url, callback=self.parse)
-                
-        
-        xpp='//h2[@class="tm-title"]/../@href'
-        prods = response.xpath(xpp).extract()
-        for p in prods:
-            self.log('request prod '+p+'#lmiv') 
-            yield response.follow(p+'#lmiv', callback=self.parse_prod)      
+                yield response.follow(url, callback=self.parse)        
+        else:
+            xpp='//h2[@class="tm-title"]/../@href'
+            prods = response.xpath(xpp).extract()
+            if re.match(r'\d',splitUrl[-1]):
+                next_page = str(int(splitUrl[-1])+1)
+                if len(prods)==20 : # not last page
+                    yield response.follow('/'.join(splitUrl[:-1])+'/'+next_page, callback=self.parse)
+            if not splitUrl[-1].endswith('#lmiv') and not re.match(r'\d',splitUrl[-1]): # page 1
+                yield response.follow('/'.join(splitUrl)+'/'+'2', callback=self.parse)
+            for p in prods:
+                #self.log('request prod '+p+'#lmiv') 
+                yield response.follow(p+'#lmiv', callback=self.parse_prod)       
             
 
     def parse_prod(self, response):
