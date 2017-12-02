@@ -13,6 +13,85 @@ import regex
 
 OUTDIR = './output/'
 
+class UnimarktSpider(scrapy.Spider):
+    name = "um"
+
+    custom_settings = {
+                       'ITEM_PIPELINES': {
+                       'is.pipelines.JsonExportPipeline': 300
+                                         }
+                      }
+
+
+    def __init__(self, baseURL=None, *args, **kwargs):
+        super(UnimarktSpider, self).__init__(*args, **kwargs)
+        self.baseURL = baseURL
+        self.category = [u'milchprodukte', u'obst-gemuese', u'fleisch-wurst',
+                         u'getraenke', u'lebensmittel', u'suesses-snacks',
+                         u'brot-gebaeck', u'tiefkuehl']
+        #self.category=[u'haselnuss-nougatcreme']
+        if not os.path.exists(OUTDIR):
+            try:
+                os.makedirs(OUTDIR)
+            except OSError:
+                raise
+
+    def start_requests(self):  
+        yield scrapy.Request(url=self.baseURL, callback=self.parse)
+
+    def parse(self, response):
+        splitUrl = response.url.rstrip('/').split('/')
+        if response.url==self.baseURL:
+            xp = '//a[@class="dropdown-toggle"]/@href'
+            categories = [x[1:] for x in response.xpath(xp).extract()]
+            for t in categories:
+                if t in self.category:
+                    yield response.follow(t, callback=self.parse)
+        if splitUrl[-1] in self.category:
+            xp = '//div[@class="dragItem produktContainer"]/div[@class="image"]/a/@href'
+            for p in response.xpath(xp).extract():
+                yield response.follow(p, callback=self.parse_prod)
+       
+    def parse_prod(self, response):
+        data = {}
+        data["name"] = response.xpath('//h1[@itemprop="name"]/text()').extract_first()
+        data["labels"] = []
+        xp = '//h5[starts-with(.,"Marke / Submarke:")]/following::p[@class="fieldValue/text()"]'
+        brand = response.xpath(xp).extract_first()
+        if brand:
+            data["brand"] = brand
+        data["stores"] = ["Unimarkt"]
+        xp = '//h5[starts-with(.,"Zutatenliste:")]/following::p[@class="fieldValue/text()"]'
+        ingredients = response.xpath(xp).extract_first()
+        if ingredients:
+            ingredients = ingredients.rstrip('.,')
+            ingredients = re.sub('(?<=\d),(?=\d)', '.',ingredients)
+            r = regex.compile(r',\s*(?![^\(\)]*\))\s*')
+            ingredients = r.split(ingredients)
+            ingredients = filter(lambda v: v is not None, ingredients)
+            # remove duplicate ingredients  
+            seen = set()
+            seen_add = seen.add
+            data["ingredients"] = [x for x in ingredients if not (x in seen or seen_add(x))]
+        else:
+            data["ingredients"] = []
+        data["details"] = {}
+        data["details"]["size"] = {}
+        xp = '//h1[@itemprop="name"]/following::h2/text()'
+        size = response.xpath(xp).extract_first()
+        if re.match(r'\d+[.,]?\d* [^\d]+',size):
+            size = size.split()
+            amount = size[0]
+            amount = amount.replace(',', '.')
+            data["details"]["size"]["amount"] = float(amount)
+            data["details"]["size"]["unit"] = size[1]
+        data["details"]["price"] = {}
+        xp = '//span[@class="actualprice"]/meta/@content'
+        data["details"]["price"]["amount"] = float(response.xpath(xp).extract_first())
+        data["details"]["price"]["currency"] = "EUR"
+        #self.log(data)
+        yield data
+
 
 class MpreisSpider(scrapy.Spider):
     name = "ms"
