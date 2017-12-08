@@ -56,12 +56,12 @@ class UnimarktSpider(scrapy.Spider):
         data = {}
         data["name"] = response.xpath('//h1[@itemprop="name"]/text()').extract_first()
         data["labels"] = []
-        xp = '//h5[starts-with(.,"Marke / Submarke:")]/following::p[@class="fieldValue/text()"]'
+        xp = '//h5[starts-with(.,"Marke / Submarke:")]/following::p[@class="fieldValue"][1]/text()'
         brand = response.xpath(xp).extract_first()
         if brand:
             data["brand"] = brand
         data["stores"] = ["Unimarkt"]
-        xp = '//h5[starts-with(.,"Zutatenliste:")]/following::p[@class="fieldValue/text()"]'
+        xp = '//h5[starts-with(.,"Zutatenliste:")]/following::p[@class="fieldValue"][1]/text()'
         ingredients = response.xpath(xp).extract_first()
         if ingredients:
             ingredients = ingredients.rstrip('.,')
