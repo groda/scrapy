@@ -2,7 +2,7 @@
 
 from scrapy import signals
 from scrapy.exporters import JsonLinesItemExporter, JsonItemExporter
-import time
+from time import gmtime, strftime
 import logging
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: http://doc.scrapy.org/en/latest/topics/item-pipeline.html
@@ -22,7 +22,7 @@ class JsonExportPipeline(object):
         return pipeline
 
     def spider_opened(self, spider):
-        timestamp = str(int(time.time()))
+        timestamp = strftime("%Y%m%d_%H%M%S", gmtime())
         file = open(OUTDIR+'%s%s_products.json' % (timestamp, spider.name), 'w+b')
         #file.write('[')
         self.files[spider] = file
